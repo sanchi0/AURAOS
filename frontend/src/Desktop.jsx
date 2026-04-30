@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import useAura from './hooks/useAura';
 import AuraTerminal from './hooks/AuraTerminal';
 
-// ============================================================
-// ORB RENDERER HOOK
-// ============================================================
+
+
+
 function useOrb(canvasRef, opts = {}) {
   const stateRef = useRef({ isMic: false, isActive: false });
   const rafRef = useRef(null);
@@ -139,9 +139,9 @@ function useOrb(canvasRef, opts = {}) {
   return { setMic, setActive };
 }
 
-// ============================================================
-// WINDOW COMPONENT
-// ============================================================
+
+
+
 const AppWindow = ({ win, onClose, onFocus, isFocused, children }) => {
   const [pos, setPos] = useState({ x: win.x, y: win.y });
   const [size, setSize] = useState({ w: 480, h: 360 });
@@ -178,7 +178,7 @@ const AppWindow = ({ win, onClose, onFocus, isFocused, children }) => {
         overflow: 'hidden', transition: 'box-shadow 0.2s, border-color 0.2s',
       }}
     >
-      {/* Header */}
+      {}
       <div
         onMouseDown={(e) => {
           if (e.target.dataset.close) return;
@@ -204,12 +204,12 @@ const AppWindow = ({ win, onClose, onFocus, isFocused, children }) => {
         >×</button>
       </div>
 
-      {/* Content */}
+      {}
       <div style={{ padding: 20, color: '#b8d4f0', height: 'calc(100% - 45px)', overflow: 'auto', fontFamily: "'Exo 2', sans-serif" }}>
         {children}
       </div>
 
-      {/* Resize handle */}
+      {}
       <div
         onMouseDown={(e) => {
           e.stopPropagation();
@@ -223,9 +223,9 @@ const AppWindow = ({ win, onClose, onFocus, isFocused, children }) => {
   );
 };
 
-// ============================================================
-// APP CONTENTS
-// ============================================================
+
+
+
 const FilesContent = () => (
   <div>
     {['Documents/', 'Downloads/', 'Desktop/', 'Pictures/'].map(f => (
@@ -265,9 +265,9 @@ const SettingsContent = () => (
   </div>
 );
 
-// ============================================================
-// SIDE PANEL
-// ============================================================
+
+
+
 const SidePanel = ({ isOpen, onClose }) => {
   const [tab, setTab] = useState('dashboard');
   if (!isOpen) return null;
@@ -348,9 +348,9 @@ const SidePanel = ({ isOpen, onClose }) => {
   );
 };
 
-// ============================================================
-// PROMPT PANEL
-// ============================================================
+
+
+
 const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListening, stopListening, onClose, onSubmit }) => {
   const [text, setText] = useState('');
   const taRef = useRef(null);
@@ -388,7 +388,7 @@ const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListenin
           boxShadow: '0 -8px 40px rgba(0,0,100,0.4)',
         }}
       >
-        {/* Header */}
+        {}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px', borderBottom: '1px solid rgba(100,200,255,0.15)', background: 'rgba(0,0,0,0.2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: isMicMode ? '#ff607a' : '#64c8ff', boxShadow: `0 0 8px ${isMicMode ? '#ff607a' : '#64c8ff'}` }} />
@@ -399,7 +399,7 @@ const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListenin
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#8aaec8', fontSize: 26, cursor: 'pointer', width: 30, height: 30, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
-        {/* Mic section */}
+        {}
         {isMicMode && (
           <>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '24px 20px 8px', gap: 10 }}>
@@ -440,7 +440,7 @@ const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListenin
           </>
         )}
 
-        {/* Text input */}
+        {}
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, padding: '14px 20px' }}>
           <textarea
             ref={taRef}
@@ -486,9 +486,9 @@ const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListenin
   );
 };
 
-// ============================================================
-// TASKBAR
-// ============================================================
+
+
+
 const Taskbar = ({ openWindows, onWindowFocus, onAuraClick }) => {
   const [time, setTime] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setTime(new Date()), 1000); return () => clearInterval(t); }, []);
@@ -546,7 +546,7 @@ const Taskbar = ({ openWindows, onWindowFocus, onAuraClick }) => {
 };
 
 
-// INTRO ORB PAGE
+
 
 const IntroPage = ({ onEnter, isHidden }) => {
   const canvasRef = useRef(null);
@@ -580,11 +580,11 @@ const IntroPage = ({ onEnter, isHidden }) => {
   );
 };
 
-// ============================================================
-// MAIN DESKTOP
-// ============================================================
+
+
+
 const Desktop = () => {
-  const [page, setPage] = useState('intro'); // 'intro' | 'desktop'
+  const [page, setPage] = useState('intro'); 
   const [iconsVisible, setIconsVisible] = useState(false);
   const [openWindows, setOpenWindows] = useState([]);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
@@ -668,7 +668,7 @@ const Desktop = () => {
 
   useEffect(() => {
     if (prevListening.current && !isListening) {
-      // Mic just stopped listening
+      
       if (transcript && transcript.trim() && isPromptOpen && isMicMode) {
         handlePromptSubmit(transcript);
       }
@@ -702,7 +702,7 @@ const Desktop = () => {
 
   return (
     <>
-      {/* Google Fonts */}
+      {}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@200;300;400;500&display=swap');
         * { margin:0; padding:0; box-sizing:border-box; user-select:none; }
@@ -717,10 +717,10 @@ const Desktop = () => {
         ::-webkit-scrollbar{width:6px;height:6px} ::-webkit-scrollbar-track{background:rgba(0,0,0,0.2)} ::-webkit-scrollbar-thumb{background:rgba(100,200,255,0.3);border-radius:3px}
       `}</style>
 
-      {/* Page 1: Intro */}
+      {}
       <IntroPage onEnter={goToDesktop} isHidden={page === 'desktop'} />
 
-      {/* Page 2: Desktop */}
+      {}
       <div style={{
         position: 'fixed', inset: 0,
         background: 'linear-gradient(135deg, #0a1a3a 0%, #001133 50%, #00001a 100%)',
@@ -731,7 +731,7 @@ const Desktop = () => {
         zIndex: page === 'desktop' ? 1 : -1,
         overflow: 'hidden',
       }}>
-        {/* Icons grid */}
+        {}
         <div style={{
           position: 'absolute', top: 20, left: 20,
           display: 'grid', gridTemplateColumns: 'repeat(4, 100px)',
@@ -759,7 +759,7 @@ const Desktop = () => {
             </div>
           ))}
 
-          {/* Desktop Orb */}
+          {}
           <div
             ref={desktopOrbRef}
             onClick={handleOrbClick}
@@ -781,17 +781,17 @@ const Desktop = () => {
           </div>
         </div>
 
-        {/* Windows */}
+        {}
         {openWindows.map(win => (
           <AppWindow key={win.id} win={win} onClose={closeWindow} onFocus={() => focusWindow(win.id)} isFocused={win.isFocused}>
             {getWindowContent(win.id)}
           </AppWindow>
         ))}
 
-        {/* Side Panel */}
+        {}
         <SidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} />
 
-        {/* Prompt Panel */}
+        {}
         <PromptPanel
           isOpen={isPromptOpen}
           isMicMode={isMicMode}
@@ -803,7 +803,7 @@ const Desktop = () => {
           onSubmit={handlePromptSubmit}
         />
 
-        {/* Taskbar */}
+        {}
         <Taskbar openWindows={openWindows} onWindowFocus={focusWindow} onAuraClick={() => setIsSidePanelOpen(true)} />
       </div>
     </>

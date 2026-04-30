@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 
-// AURA Terminal Component
+
 const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, clearOutput, socketConnected }) => {
   const terminalRef = useRef(null);
 
-  // Auto-scroll to bottom when new output arrives
+  
   useEffect(() => {
     if (terminalRef.current) {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
@@ -13,7 +13,7 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Terminal header */}
+      {}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, paddingBottom: 8, borderBottom: '1px solid rgba(100,200,255,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: socketConnected ? '#4cff9e' : '#ff6b6b', boxShadow: `0 0 6px ${socketConnected ? '#4cff9e' : '#ff6b6b'}` }} />
@@ -27,7 +27,7 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
         </button>
       </div>
 
-      {/* Terminal output */}
+      {}
       <div
         ref={terminalRef}
         style={{
@@ -71,7 +71,7 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
         )}
       </div>
 
-      {/* Input area hint */}
+      {}
       <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(100,200,255,0.1)', color: 'rgba(100,200,255,0.3)', fontSize: 10, textAlign: 'center', letterSpacing: 1 }}>
         Use the AURA orb to send commands • Voice input supported
       </div>

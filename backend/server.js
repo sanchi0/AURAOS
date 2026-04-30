@@ -8,7 +8,7 @@ const wss = new WebSocket.Server({ server });
 
 const { exec } = require('child_process');
 
-// Check if Gemini API key is available
+
 let model = null;
 if (process.env.GEMINI_API_KEY) {
   const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -34,7 +34,7 @@ wss.on('connection', (ws) => {
         const userPrompt = message.content;
 
         if (model) {
-          // Use Gemini AI
+          
           try {
             const result = await model.generateContentStream(userPrompt);
             let fullResponse = '';
@@ -96,7 +96,7 @@ wss.on('connection', (ws) => {
             ws.send(JSON.stringify({ type: 'response', content: `Error: ${apiError.message}` }));
           }
         } else {
-          // Use fallback responses
+          
           const lowerPrompt = userPrompt.toLowerCase();
           let response = '';
 

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-// WebSocket connection to AURA backend
+
 export function useAura() {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
@@ -58,7 +58,7 @@ export function useAura() {
   const speakText = (text) => {
     if (!('speechSynthesis' in window)) return;
 
-    // Clean text (remove markdown like "> Executing: ")
+    
     const cleanText = text.replace(/> Executing: .*\n\n/g, '').replace(/[#*`]/g, '').trim();
     if (!cleanText) return;
 
@@ -73,7 +73,7 @@ export function useAura() {
     window.speechSynthesis.speak(utterance);
   };
 
-  // Initialize WebSocket connection
+  
   useEffect(() => {
     const connectWebSocket = () => {
       try {
@@ -87,7 +87,7 @@ export function useAura() {
         wsRef.current.onclose = () => {
           console.log('❌ WebSocket disconnected');
           setSocketConnected(false);
-          // Attempt to reconnect after 3 seconds
+          
           reconnectTimeoutRef.current = setTimeout(connectWebSocket, 3000);
         };
 
@@ -100,7 +100,7 @@ export function useAura() {
             const data = JSON.parse(event.data);
 
             if (data.type === 'stream') {
-              // Append streaming response
+              
               setOutput(prev => {
                 const lastMessage = prev[prev.length - 1];
                 if (lastMessage && lastMessage.isStreaming) {
@@ -186,14 +186,14 @@ export function useAura() {
     setOutput(prev => [...prev, { type: 'user', content: text.trim() }]);
     setIsProcessing(true);
 
-    // Send to WebSocket if connected
+    
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({
         type: 'prompt',
         content: text.trim()
       }));
     } else {
-      // Fallback to local processing if WebSocket not connected
+      
       console.log('WebSocket not connected, using local fallback');
       setTimeout(() => {
         const lowerText = text.toLowerCase();
