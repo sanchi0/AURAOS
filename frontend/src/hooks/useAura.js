@@ -8,6 +8,7 @@ export function useAura() {
   const [output, setOutput] = useState([]);
   const [pendingConfirm, setPendingConfirm] = useState(null);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [sysHistory, setSysHistory] = useState(Array(20).fill({ cpuLoad: 0, memUsed: 0 }));
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -134,6 +135,8 @@ export function useAura() {
               setOutput(prev => [...prev, { type: 'aura', content: `Error: ${data.content}` }]);
               setIsProcessing(false);
               speakText("I encountered an error processing your request.");
+            } else if (data.type === 'sysinfo') {
+              setSysHistory(prev => [...prev.slice(1), { memUsed: data.memUsed, cpuLoad: parseFloat(data.cpuLoad) * 20 }]); // Scale load avg
             }
           } catch (e) {
             console.error('Failed to parse message:', e);
@@ -248,6 +251,7 @@ export function useAura() {
     confirmPending,
     cancelPending,
     socketConnected,
+    sysHistory,
   };
 }
 

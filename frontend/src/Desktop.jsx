@@ -268,7 +268,7 @@ const SettingsContent = () => (
 
 
 
-const SidePanel = ({ isOpen, onClose }) => {
+const SidePanel = ({ isOpen, onClose, sysHistory = [] }) => {
   const [tab, setTab] = useState('dashboard');
   if (!isOpen) return null;
 
@@ -314,12 +314,16 @@ const SidePanel = ({ isOpen, onClose }) => {
                   <span style={{ fontSize: 12, opacity: 0.7 }}>{l}</span><span style={{ fontWeight: 600 }}>{v}</span>
                 </div>
               ))}
-              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '12px 16px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span style={{ fontSize: 12, opacity: 0.7 }}>Neural Load</span>
-                <div style={{ flex: 1, height: 6, background: 'rgba(255,255,255,0.1)', borderRadius: 3, overflow: 'hidden' }}>
-                  <div style={{ width: '32%', height: '100%', background: 'linear-gradient(90deg, #64c8ff, #2a6fff)', borderRadius: 3 }} />
+              <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '12px 16px', marginBottom: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, opacity: 0.7 }}>Neural Load</span>
+                  <span style={{ fontWeight: 600, color: '#64c8ff' }}>{sysHistory[sysHistory.length - 1]?.memUsed || 0}%</span>
                 </div>
-                <span style={{ fontWeight: 600 }}>32%</span>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 32 }}>
+                  {sysHistory.map((pt, i) => (
+                    <div key={i} style={{ flex: 1, background: 'linear-gradient(0deg, #2a6fff, #64c8ff)', height: `${Math.max(4, pt.memUsed)}%`, borderRadius: 2, opacity: 0.3 + (i/sysHistory.length)*0.7, transition: 'height 0.3s ease' }} />
+                  ))}
+                </div>
               </div>
             </>
           )}
@@ -332,13 +336,14 @@ const SidePanel = ({ isOpen, onClose }) => {
             ))
           )}
           {tab === 'resources' && (
-            [['CPU', '23%', 23], ['Memory', '45%', 45], ['Neural', '78%', 78]].map(([l, v, p]) => (
+            [['CPU', `${Math.round(sysHistory[sysHistory.length-1]?.cpuLoad || 0)}%`, sysHistory[sysHistory.length-1]?.cpuLoad || 0], 
+             ['Memory', `${sysHistory[sysHistory.length-1]?.memUsed || 0}%`, sysHistory[sysHistory.length-1]?.memUsed || 0]].map(([l, v, p]) => (
               <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                 <span style={{ minWidth: 60 }}>{l}</span>
                 <div style={{ flex: 1, height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
-                  <div style={{ width: `${p}%`, height: '100%', background: 'linear-gradient(90deg, #64c8ff, #2a6fff)', borderRadius: 4 }} />
+                  <div style={{ width: `${p}%`, height: '100%', background: 'linear-gradient(90deg, #64c8ff, #2a6fff)', transition: 'width 0.3s ease', borderRadius: 4 }} />
                 </div>
-                <span style={{ minWidth: 36 }}>{v}</span>
+                <span style={{ minWidth: 36, textAlign: 'right' }}>{v}</span>
               </div>
             ))
           )}
@@ -598,7 +603,7 @@ const Desktop = () => {
     isProcessing, submitPrompt,
     output, clearOutput,
     pendingConfirm, confirmPending, cancelPending,
-    socketConnected,
+    socketConnected, sysHistory,
   } = useAura();
 
 
@@ -692,6 +697,11 @@ const Desktop = () => {
         cancelPending={cancelPending}
         clearOutput={clearOutput}
         socketConnected={socketConnected}
+        submitPrompt={submitPrompt}
+        isListening={isListening}
+        startListening={startListening}
+        stopListening={stopListening}
+        transcript={transcript}
       />
     );
     if (id === 'files') return <FilesContent />;
@@ -789,7 +799,7 @@ const Desktop = () => {
         ))}
 
         {}
-        <SidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} />
+        <SidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} sysHistory={sysHistory} />
 
         {}
         <PromptPanel

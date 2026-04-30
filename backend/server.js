@@ -9,18 +9,36 @@ const wss = new WebSocket.Server({ server });
 const { exec } = require('child_process');
 
 
-let model = null;
-if (process.env.GEMINI_API_KEY) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash',
-    systemInstruction: `You are AURA, a powerful local OS AI assistant. You have the ability to execute bash commands on the user's Linux machine.
-If the user's request requires executing a system command (e.g., creating a folder, downloading a file, opening an application, etc.), respond ONLY with a JSON object in this exact format: {"command": "your bash command"}. Do not include any other text or markdown formatting.
-If the request is conversational and does NOT require executing a command, respond normally with natural text.`
-  });
-  console.log('✅ Gemini AI initialized');
+const apiKeys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map(k => k.trim()).filter(Boolean);
+let currentKeyIndex = 0;
+
+if (apiKeys.length > 0) {
+  console.log(`✅ Gemini AI initialized with ${apiKeys.length} API keys.`);
 } else {
   console.log('⚠️ No Gemini API key found. Using fallback responses.');
+}
+
+async function generateContentWithRetry(userPrompt) {
+  let attempts = 0;
+  while (attempts < apiKeys.length) {
+    const key = apiKeys[currentKeyIndex];
+    const genAI = new GoogleGenerativeAI(key);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-2.5-flash',
+      systemInstruction: `You are AURA, a powerful local OS AI assistant. You have the ability to execute bash commands on the user's Linux machine.
+If the user's request requires executing a system command (e.g., creating a folder, downloading a file, opening an application, etc.), respond ONLY with a JSON object in this exact format: {"command": "your bash command"}. Do not include any other text or markdown formatting.
+If the request is conversational and does NOT require executing a command, respond normally with natural text.`
+    });
+
+    try {
+      return await model.generateContentStream(userPrompt);
+    } catch (error) {
+      console.warn(`⚠️ API Key ${currentKeyIndex + 1} failed (${error.message}). Switching to next key...`);
+      currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+      attempts++;
+    }
+  }
+  throw new Error('All Gemini API keys failed or limit reached.');
 }
 
 wss.on('connection', (ws) => {
@@ -33,10 +51,10 @@ wss.on('connection', (ws) => {
       if (message.type === 'prompt') {
         const userPrompt = message.content;
 
-        if (model) {
+        if (apiKeys.length > 0) {
           
           try {
-            const result = await model.generateContentStream(userPrompt);
+            const result = await generateContentWithRetry(userPrompt);
             let fullResponse = '';
             let isJSONCommand = false;
 
@@ -120,6 +138,29 @@ wss.on('connection', (ws) => {
     }
   });
 });
+
+
+
+const os = require('os');
+
+setInterval(() => {
+  const freeMem = os.freemem();
+  const totalMem = os.totalmem();
+  const memUsedPercent = Math.round(((totalMem - freeMem) / totalMem) * 100);
+  const loadAvg = os.loadavg()[0].toFixed(2);
+  
+  const sysinfo = JSON.stringify({
+    type: 'sysinfo',
+    memUsed: memUsedPercent,
+    cpuLoad: loadAvg
+  });
+  
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(sysinfo);
+    }
+  });
+}, 2000);
 
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
