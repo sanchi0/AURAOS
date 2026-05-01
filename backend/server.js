@@ -50,6 +50,10 @@ wss.on('connection', (ws) => {
 
       if (message.type === 'execute') {
         const cmd = message.content;
+        if (cmd.includes('sudo ') || cmd.startsWith('sudo')) {
+          ws.send(JSON.stringify({ type: 'require_password', command: cmd }));
+          return;
+        }
         ws.send(JSON.stringify({ type: 'stream', content: `> Executing: ${cmd}\n\n` }));
         const child = exec(cmd, { cwd: '/home/vboxuser' });
 
@@ -61,6 +65,20 @@ wss.on('connection', (ws) => {
           ws.send(JSON.stringify({ type: 'stream', content: data.toString() }));
         });
 
+        child.on('close', (code) => {
+          ws.send(JSON.stringify({ type: 'stream_end' }));
+          const statusMsg = code === 0 ? '\n✅ Command completed successfully.' : `\n❌ Command failed with exit code ${code}.`;
+          ws.send(JSON.stringify({ type: 'response', content: statusMsg }));
+        });
+      } else if (message.type === 'execute_sudo') {
+        const cmd = message.command;
+        const pwdEscaped = message.password.replace(/"/g, '\\"');
+        ws.send(JSON.stringify({ type: 'stream', content: `> Executing with sudo: ${cmd}\n\n` }));
+        const sudoCmd = cmd.replace(/(^|\s)sudo\s+/g, `$1echo "${pwdEscaped}" | sudo -S `);
+        const child = exec(sudoCmd, { cwd: '/home/vboxuser' });
+
+        child.stdout.on('data', (data) => ws.send(JSON.stringify({ type: 'stream', content: data.toString() })));
+        child.stderr.on('data', (data) => ws.send(JSON.stringify({ type: 'stream', content: data.toString() })));
         child.on('close', (code) => {
           ws.send(JSON.stringify({ type: 'stream_end' }));
           const statusMsg = code === 0 ? '\n✅ Command completed successfully.' : `\n❌ Command failed with exit code ${code}.`;
@@ -98,6 +116,19 @@ wss.on('connection', (ws) => {
                 const parsed = JSON.parse(cleanedStr);
 
                 if (parsed.command) {
+                  let cmdStr = parsed.command.trim().toLowerCase();
+                  if (cmdStr.includes('google-chrome') || cmdStr === 'chrome' || cmdStr.includes('chromium')) {
+                    ws.send(JSON.stringify({ type: 'open_app', app: 'chrome' }));
+                    ws.send(JSON.stringify({ type: 'response', content: 'Opening Chrome within AURA...' }));
+                    ws.send(JSON.stringify({ type: 'stream_end' }));
+                    return;
+                  }
+
+                  if (parsed.command.includes('sudo ') || parsed.command.startsWith('sudo')) {
+                    ws.send(JSON.stringify({ type: 'require_password', command: parsed.command }));
+                    return;
+                  }
+
                   ws.send(JSON.stringify({ type: 'stream', content: `> Executing: ${parsed.command}\n\n` }));
 
                   const child = exec(parsed.command, { cwd: '/home/vboxuser' });

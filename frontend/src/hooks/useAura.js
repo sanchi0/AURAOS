@@ -16,6 +16,7 @@ export function useAura(wakeWordEnabled = false) {
   const recognitionRef = useRef(null);
   const wakeWordRecRef = useRef(null);
   const [wakeWordEvent, setWakeWordEvent] = useState(0);
+  const [openAppRequest, setOpenAppRequest] = useState(null);
   const isListeningRef = useRef(false);
   const wakeWordEnabledRef = useRef(false);
 
@@ -209,6 +210,14 @@ export function useAura(wakeWordEnabled = false) {
               setOutput(prev => [...prev, { type: 'aura', content: `Error: ${data.content}` }]);
               setIsProcessing(false);
               speakText("I encountered an error processing your request.");
+            } else if (data.type === 'require_password') {
+              setPendingConfirm({ type: 'password', command: data.command });
+              setIsProcessing(false);
+              speakText("This command requires administrator privileges. Please enter your password.");
+            } else if (data.type === 'open_app') {
+              setOpenAppRequest({ app: data.app, ts: Date.now() });
+              setIsProcessing(false);
+              speakText(`Opening ${data.app}.`);
             } else if (data.type === 'sysinfo') {
               setSysHistory(prev => [...prev.slice(1), { memUsed: data.memUsed, cpuLoad: parseFloat(data.cpuLoad) * 20 }]); // Scale load avg
               if (data.desktopFiles) setDesktopFiles(data.desktopFiles);
@@ -319,12 +328,19 @@ export function useAura(wakeWordEnabled = false) {
     setOutput([]);
   }, []);
 
-  const confirmPending = useCallback((pendingContent) => {
-    if (pendingContent) {
-      submitPrompt(pendingContent);
+  const confirmPending = useCallback((pendingData) => {
+    if (pendingData && pendingData.type === 'password') {
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: 'execute_sudo',
+          command: pendingData.command,
+          password: pendingData.password
+        }));
+      }
       setPendingConfirm(null);
-    } else if (pendingConfirm) {
-      submitPrompt(pendingConfirm);
+    } else {
+      const content = typeof pendingData === 'string' ? pendingData : (pendingConfirm && pendingConfirm.command ? pendingConfirm.command : pendingConfirm);
+      submitPrompt(content);
       setPendingConfirm(null);
     }
   }, [pendingConfirm, submitPrompt]);
@@ -351,6 +367,7 @@ export function useAura(wakeWordEnabled = false) {
     stopSpeech,
     executeCommand,
     wakeWordEvent,
+    openAppRequest
   };
 }
 

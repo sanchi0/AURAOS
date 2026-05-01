@@ -773,6 +773,7 @@ const Desktop = () => {
   const [focusedWindow, setFocusedWindow] = useState(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeMenuApp, setActiveMenuApp] = useState(null);
+  const [menuSearch, setMenuSearch] = useState('');
   const [batteryLevel, setBatteryLevel] = useState(99);
   const [language, setLanguage] = useState('EN');
   const [theme, setTheme] = useState('Dark Aurora');
@@ -800,10 +801,8 @@ const Desktop = () => {
     output, clearOutput,
     pendingConfirm, confirmPending, cancelPending,
     socketConnected, sysHistory, desktopFiles, stopSpeech,
-    wakeWordEvent
+    wakeWordEvent, openAppRequest
   } = useAura(page === 'desktop');
-
-
 
   const desktopOrbRef = useRef(null);
   const desktopOrbCanvas = useRef(null);
@@ -823,6 +822,7 @@ const Desktop = () => {
     calculator: { title: t('calculator'), Icon: Calculator },
     photos: { title: t('photos'), Icon: ImageIcon },
     calendar: { title: t('calendar'), Icon: Calendar },
+    chrome: { title: 'Chrome', Icon: Globe },
   };
 
   const openApp = useCallback((id) => {
@@ -836,6 +836,12 @@ const Desktop = () => {
     });
     setFocusedWindow(id);
   }, []);
+
+  useEffect(() => {
+    if (openAppRequest) {
+      openApp(openAppRequest.app);
+    }
+  }, [openAppRequest, openApp]);
 
   const closeWindow = useCallback((id) => {
     setOpenWindows(prev => prev.filter(w => w.id !== id));
@@ -898,6 +904,7 @@ const Desktop = () => {
 
   const iconDefs = [
     { id: 'aura', label: 'AURA', svg: <svg width="38" height="38" viewBox="0 0 24 24" stroke="white" fill="none" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><circle cx="12" cy="12" r="7" opacity="0.6" /><path d="M4 12a8 8 0 0 1 8-8" /></svg> },
+    { id: 'chrome', label: 'CHROME', svg: <svg width="38" height="38" viewBox="0 0 24 24" stroke="none" fill="#fbbf24"><circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="4" fill="white" /><path d="M12 2A10 10 0 0 1 22 12H12V2z" fill="#f87171" /><path d="M12 22A10 10 0 0 1 2 12H12V22z" fill="#4ade80" /></svg> },
     { id: 'tasks', label: 'TASKS', svg: <svg width="38" height="38" viewBox="0 0 24 24" stroke="white" fill="none" strokeWidth="1.5"><rect x="4" y="6" width="16" height="4" rx="1" /><rect x="6" y="12" width="12" height="4" rx="1" /></svg> },
     { id: 'files', label: 'FILES', svg: <svg width="38" height="38" viewBox="0 0 24 24" stroke="white" fill="none" strokeWidth="1.5"><path d="M13 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><polyline points="13 3 13 9 19 9" /></svg> },
     { id: 'settings', label: 'SETTINGS', svg: <svg width="38" height="38" viewBox="0 0 24 24" stroke="white" fill="none" strokeWidth="1.5"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 4.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg> },
@@ -926,6 +933,7 @@ const Desktop = () => {
     if (id === 'calendar') return <CalendarContent />;
     if (id === 'files') return <FilesContent />;
     if (id === 'tasks') return <TasksContent />;
+    if (id === 'chrome') return <ChromeContent />;
     if (id === 'settings') return <SettingsContent bgImage={bgImage} setBgImage={setBgImage} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} />;
     return null;
   };
@@ -1058,6 +1066,8 @@ const Desktop = () => {
               }}
             >
               {file.isDir ? <Folder size={42} color="#64c8ff" style={{ opacity: 0.9, filter: 'drop-shadow(0 4px 8px rgba(100,200,255,0.3))' }} /> : 
+               file.name.toLowerCase().includes('google') || file.name.toLowerCase().includes('chrome') ? <Globe size={42} color="#fbbf24" style={{ opacity: 0.9, filter: 'drop-shadow(0 4px 8px rgba(251,191,36,0.3))' }} /> :
+               file.name.toLowerCase().includes('spotify') ? <Music size={42} color="#4ade80" style={{ opacity: 0.9, filter: 'drop-shadow(0 4px 8px rgba(74,222,128,0.3))' }} /> :
                file.isExec ? <Terminal size={42} color="#a78bfa" style={{ opacity: 0.9, filter: 'drop-shadow(0 4px 8px rgba(167,139,250,0.3))' }} /> :
                <FileText size={42} color="#e4e4e7" style={{ opacity: 0.9, filter: 'drop-shadow(0 4px 8px rgba(255,255,255,0.2))' }} />}
               <span style={{ color: '#e4e4e7', fontSize: 12, fontWeight: 500, textAlign: 'center', wordBreak: 'break-word', textShadow: '0 2px 4px rgba(0,0,0,0.8)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
@@ -1086,40 +1096,65 @@ const Desktop = () => {
             boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             border: '1px solid rgba(255,255,255,0.05)'
           }}>
-            {[
-              { icon: Settings, label: t('settings'), id: 'settings' },
-              { icon: ImageIcon, label: t('photos'), id: 'photos' },
-              { icon: Calculator, label: t('calculator'), id: 'calculator' },
-              { icon: Mail, label: t('mail'), id: 'mail', link: 'mailto:' },
-              { icon: Terminal, label: t('terminal'), id: 'terminal' },
-              { icon: Calendar, label: t('calendar'), id: 'calendar' },
-              { icon: Hash, label: t('github'), id: 'github', link: 'https://github.com' },
-              { icon: MessageCircle, label: t('chatgpt'), id: 'chatgpt', link: 'https://chatgpt.com' },
-              { icon: MessageCircle, label: t('whatsapp'), id: 'whatsapp', link: 'https://web.whatsapp.com' },
-              { icon: Globe, label: t('twitter'), id: 'twitter', link: 'https://twitter.com' },
-            ].map((app, i) => (
-              <div key={i}
-                onMouseDown={() => setActiveMenuApp(app.label)}
-                onMouseUp={() => setTimeout(() => setActiveMenuApp(null), 200)}
-                onMouseEnter={e => { if (activeMenuApp !== app.label) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={e => { setActiveMenuApp(null); e.currentTarget.style.background = 'transparent'; }}
-                onClick={() => {
-                  if (app.link) window.open(app.link, '_blank');
-                  else openApp(app.id);
-                }}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px',
-                  borderRadius: 12, cursor: 'pointer',
-                  background: activeMenuApp === app.label ? 'rgba(167, 139, 250, 0.2)' : 'transparent',
-                  color: activeMenuApp === app.label ? '#c4b5fd' : '#a1a1aa',
-                  transition: 'all 0.1s',
-                }}>
-                <div style={{ background: activeMenuApp === app.label ? '#a78bfa' : 'transparent', padding: 6, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <app.icon size={18} color={activeMenuApp === app.label ? '#fff' : '#a1a1aa'} />
-                </div>
-                <span style={{ fontSize: 14, fontWeight: 500 }}>{app.label}</span>
-              </div>
-            ))}
+            {(() => {
+              const baseApps = [
+                { icon: Settings, label: t('settings'), id: 'settings' },
+                { icon: ImageIcon, label: t('photos'), id: 'photos' },
+                { icon: Calculator, label: t('calculator'), id: 'calculator' },
+                { icon: Mail, label: t('mail'), id: 'mail', link: 'mailto:' },
+                { icon: Terminal, label: t('terminal'), id: 'terminal' },
+                { icon: Calendar, label: t('calendar'), id: 'calendar' },
+                { icon: Hash, label: t('github'), id: 'github', link: 'https://github.com' },
+                { icon: MessageCircle, label: t('chatgpt'), id: 'chatgpt', link: 'https://chatgpt.com' },
+                { icon: MessageCircle, label: t('whatsapp'), id: 'whatsapp', link: 'https://web.whatsapp.com' },
+                { icon: Globe, label: t('twitter'), id: 'twitter', link: 'https://twitter.com' },
+              ];
+
+              const fileItems = menuSearch ? desktopFiles.map(f => ({
+                icon: f.isDir ? Folder : f.name.toLowerCase().includes('google') || f.name.toLowerCase().includes('chrome') ? Globe : f.name.toLowerCase().includes('spotify') ? Music : f.isExec ? Terminal : FileText,
+                label: f.name,
+                isFile: true,
+                original: f
+              })) : [];
+
+              return [...baseApps, ...fileItems]
+                .filter(item => item.label.toLowerCase().includes(menuSearch.toLowerCase()))
+                .slice(0, 10) // Limit to avoid overflowing the menu height
+                .map((app, i) => (
+                  <div key={i}
+                    onMouseDown={() => setActiveMenuApp(app.label)}
+                    onMouseUp={() => setTimeout(() => setActiveMenuApp(null), 200)}
+                    onMouseEnter={e => { if (activeMenuApp !== app.label) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+                    onMouseLeave={e => { setActiveMenuApp(null); e.currentTarget.style.background = 'transparent'; }}
+                    onClick={() => {
+                      if (app.isFile) {
+                        if (app.original.isDir) openApp('files');
+                        else {
+                          openApp('aura');
+                          if (app.original.isExec) setTimeout(() => executeCommand('~/Desktop/' + app.original.name), 500);
+                          else setTimeout(() => executeCommand(`[ -s ~/Desktop/${app.original.name} ] && cat ~/Desktop/${app.original.name} || echo "(File is empty)"`), 500);
+                        }
+                      } else {
+                        if (app.link) window.open(app.link, '_blank');
+                        else openApp(app.id);
+                      }
+                      setIsMenuOpen(false);
+                      setMenuSearch('');
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 16, padding: '10px 16px',
+                      borderRadius: 12, cursor: 'pointer',
+                      background: activeMenuApp === app.label ? 'rgba(167, 139, 250, 0.2)' : 'transparent',
+                      color: activeMenuApp === app.label ? '#c4b5fd' : '#a1a1aa',
+                      transition: 'all 0.1s',
+                    }}>
+                    <div style={{ background: activeMenuApp === app.label ? '#a78bfa' : 'transparent', padding: 6, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <app.icon size={18} color={activeMenuApp === app.label ? '#fff' : '#a1a1aa'} />
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{app.label}</span>
+                  </div>
+              ));
+            })()}
           </div>
 
           {/* Right Column */}
@@ -1136,10 +1171,16 @@ const Desktop = () => {
               display: 'flex', alignItems: 'center', gap: 12, color: '#a1a1aa'
             }}>
               <Search size={18} />
-              <input type="text" placeholder="SEARCH THIS PC" style={{
-                background: 'transparent', border: 'none', outline: 'none', color: '#fff',
-                fontSize: 13, fontWeight: 600, width: '100%', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1
-              }} />
+              <input 
+                type="text" 
+                placeholder="SEARCH THIS PC" 
+                value={menuSearch}
+                onChange={e => setMenuSearch(e.target.value)}
+                style={{
+                  background: 'transparent', border: 'none', outline: 'none', color: '#fff',
+                  fontSize: 13, fontWeight: 600, width: '100%', fontFamily: 'Rajdhani, sans-serif', letterSpacing: 1
+                }} 
+              />
             </div>
 
             {/* Resources Progress */}

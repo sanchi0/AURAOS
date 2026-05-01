@@ -58,18 +58,42 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
         ))}
         {pendingConfirm && (
           <div style={{ marginTop: 12, padding: 12, background: 'rgba(100,200,255,0.1)', borderRadius: 8 }}>
-            <span style={{ color: '#ffaa44' }}>⚠️ Pending confirmation:</span>
-            <span style={{ color: '#b8d4f0', marginLeft: 8 }}>{pendingConfirm}</span>
-            <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+            <span style={{ color: '#ffaa44' }}>⚠️ {pendingConfirm.type === 'password' ? 'Sudo Password Required:' : 'Pending confirmation:'}</span>
+            <span style={{ color: '#b8d4f0', marginLeft: 8 }}>
+              {pendingConfirm.type === 'password' ? pendingConfirm.command : pendingConfirm}
+            </span>
+            
+            {pendingConfirm.type === 'password' && (
+              <input 
+                type="password" 
+                id="sudo-password-input"
+                placeholder="Enter sudo password"
+                style={{ display: 'block', width: '100%', marginTop: 8, padding: 8, borderRadius: 4, border: '1px solid rgba(76,255,158,0.5)', background: 'rgba(0,0,0,0.5)', color: '#fff', outline: 'none' }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    confirmPending({ ...pendingConfirm, password: e.target.value });
+                  }
+                }}
+              />
+            )}
+
+            <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
               <button 
-                onClick={() => confirmPending(pendingConfirm)} 
-                style={{ background: 'rgba(76,255,158,0.2)', border: '1px solid #4cff9e', color: '#4cff9e', padding: '4px 12px', borderRadius: 4, cursor: 'pointer' }}
+                onClick={() => {
+                  if (pendingConfirm.type === 'password') {
+                    const pwd = document.getElementById('sudo-password-input').value;
+                    confirmPending({ ...pendingConfirm, password: pwd });
+                  } else {
+                    confirmPending(pendingConfirm);
+                  }
+                }} 
+                style={{ background: 'rgba(76,255,158,0.2)', border: '1px solid #4cff9e', color: '#4cff9e', padding: '6px 16px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >
                 Confirm
               </button>
               <button 
                 onClick={cancelPending} 
-                style={{ background: 'rgba(255,107,107,0.2)', border: '1px solid #ff6b6b', color: '#ff6b6b', padding: '4px 12px', borderRadius: 4, cursor: 'pointer' }}
+                style={{ background: 'rgba(255,107,107,0.2)', border: '1px solid #ff6b6b', color: '#ff6b6b', padding: '6px 16px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}
               >
                 Cancel
               </button>
