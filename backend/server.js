@@ -48,7 +48,25 @@ wss.on('connection', (ws) => {
     try {
       const message = JSON.parse(data);
 
-      if (message.type === 'prompt') {
+      if (message.type === 'execute') {
+        const cmd = message.content;
+        ws.send(JSON.stringify({ type: 'stream', content: `> Executing: ${cmd}\n\n` }));
+        const child = exec(cmd, { cwd: '/home/vboxuser' });
+
+        child.stdout.on('data', (data) => {
+          ws.send(JSON.stringify({ type: 'stream', content: data.toString() }));
+        });
+
+        child.stderr.on('data', (data) => {
+          ws.send(JSON.stringify({ type: 'stream', content: data.toString() }));
+        });
+
+        child.on('close', (code) => {
+          ws.send(JSON.stringify({ type: 'stream_end' }));
+          const statusMsg = code === 0 ? '\n✅ Command completed successfully.' : `\n❌ Command failed with exit code ${code}.`;
+          ws.send(JSON.stringify({ type: 'response', content: statusMsg }));
+        });
+      } else if (message.type === 'prompt') {
         const userPrompt = message.content;
 
         if (apiKeys.length > 0) {
@@ -63,7 +81,7 @@ wss.on('connection', (ws) => {
               if (chunkText) {
                 fullResponse += chunkText;
 
-                if (fullResponse.trimStart().startsWith('{')) {
+                if (fullResponse.trimStart().startsWith('{') || fullResponse.trimStart().startsWith('`')) {
                   isJSONCommand = true;
                   continue;
                 }
@@ -80,7 +98,7 @@ wss.on('connection', (ws) => {
                 const parsed = JSON.parse(cleanedStr);
 
                 if (parsed.command) {
-                  ws.send(JSON.stringify({ type: 'response', content: `> Executing: ${parsed.command}\n\n` }));
+                  ws.send(JSON.stringify({ type: 'stream', content: `> Executing: ${parsed.command}\n\n` }));
 
                   const child = exec(parsed.command, { cwd: '/home/vboxuser' });
 
@@ -142,6 +160,25 @@ wss.on('connection', (ws) => {
 
 
 const os = require('os');
+const fs = require('fs');
+const path = require('path');
+
+function getDesktopFiles() {
+  try {
+    const desktopPath = '/home/vboxuser/Desktop';
+    if (!fs.existsSync(desktopPath)) return [];
+    return fs.readdirSync(desktopPath).map(f => {
+      const stats = fs.statSync(path.join(desktopPath, f));
+      return { 
+        name: f, 
+        isDir: stats.isDirectory(), 
+        isExec: f.endsWith('.desktop') || !!(stats.mode & fs.constants.S_IXUSR) 
+      };
+    });
+  } catch (e) {
+    return [];
+  }
+}
 
 setInterval(() => {
   const freeMem = os.freemem();
@@ -152,7 +189,8 @@ setInterval(() => {
   const sysinfo = JSON.stringify({
     type: 'sysinfo',
     memUsed: memUsedPercent,
-    cpuLoad: loadAvg
+    cpuLoad: loadAvg,
+    desktopFiles: getDesktopFiles()
   });
   
   wss.clients.forEach(client => {

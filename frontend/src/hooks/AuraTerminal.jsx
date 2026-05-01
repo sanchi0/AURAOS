@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
-const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, clearOutput, socketConnected, sysInfo, submitPrompt, isListening, startListening, stopListening, transcript }) => {
+const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, clearOutput, socketConnected, sysInfo, submitPrompt, isListening, startListening, stopListening, transcript, isProcessing }) => {
   const terminalRef = useRef(null);
   const [text, setText] = useState('');
 
@@ -48,7 +48,12 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
             <span style={{ color: item.type === 'user' ? '#64c8ff' : '#c8ffb8', fontWeight: 500 }}>
               {item.type === 'user' ? '➤ You:' : '✦ AURA:'}
             </span>
-            <span style={{ color: '#b8d4f0', marginLeft: 8 }}>{item.content}</span>
+            <span style={{ color: '#b8d4f0', marginLeft: 8, whiteSpace: 'pre-wrap' }}>
+              {item.content}
+              {item.isStreaming && (
+                <span style={{ display: 'inline-block', marginLeft: 8, animation: 'spin 1s linear infinite', color: '#64c8ff' }}>⟳</span>
+              )}
+            </span>
           </div>
         ))}
         {pendingConfirm && (
@@ -95,32 +100,34 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
         <textarea
           value={text}
           onChange={e => setText(e.target.value)}
+          disabled={isProcessing}
           onKeyDown={e => {
             if (e.key === 'Enter' && !e.shiftKey) { 
               e.preventDefault(); 
-              if (text.trim()) { 
+              if (text.trim() && !isProcessing) { 
                 submitPrompt(text.trim()); 
                 setText(''); 
               } 
             }
           }}
-          placeholder={isListening ? 'Listening...' : 'Type a command... (Enter to send)'}
+          placeholder={isProcessing ? 'Waiting for process to complete...' : isListening ? 'Listening...' : 'Type a command... (Enter to send)'}
           rows={1}
           style={{
-            flex: 1, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(100,200,255,0.2)',
-            borderRadius: 12, color: '#e0f0ff', fontSize: 13, fontFamily: "'Exo 2', sans-serif",
+            flex: 1, background: isProcessing ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(100,200,255,0.2)',
+            borderRadius: 12, color: isProcessing ? 'rgba(224,240,255,0.5)' : '#e0f0ff', fontSize: 13, fontFamily: "'Exo 2', sans-serif",
             padding: '12px 16px', resize: 'none', outline: 'none', lineHeight: 1.5,
+            cursor: isProcessing ? 'not-allowed' : 'text'
           }}
         />
         <button
-          onClick={() => { if (text.trim()) { submitPrompt(text.trim()); setText(''); } }}
-          disabled={!text.trim()}
+          onClick={() => { if (text.trim() && !isProcessing) { submitPrompt(text.trim()); setText(''); } }}
+          disabled={!text.trim() || isProcessing}
           style={{
             width: 44, height: 44, borderRadius: 12,
-            background: text.trim() ? 'rgba(100,200,255,0.18)' : 'rgba(100,200,255,0.08)',
-            border: `1px solid ${text.trim() ? 'rgba(100,200,255,0.5)' : 'rgba(100,200,255,0.2)'}`,
-            color: text.trim() ? '#64c8ff' : 'rgba(100,200,255,0.3)',
-            cursor: text.trim() ? 'pointer' : 'not-allowed',
+            background: text.trim() && !isProcessing ? 'rgba(100,200,255,0.18)' : 'rgba(100,200,255,0.08)',
+            border: `1px solid ${text.trim() && !isProcessing ? 'rgba(100,200,255,0.5)' : 'rgba(100,200,255,0.2)'}`,
+            color: text.trim() && !isProcessing ? '#64c8ff' : 'rgba(100,200,255,0.3)',
+            cursor: text.trim() && !isProcessing ? 'pointer' : 'not-allowed',
             display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
           }}
         >

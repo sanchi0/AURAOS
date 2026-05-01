@@ -7,6 +7,7 @@ export function useAura() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [output, setOutput] = useState([]);
   const [pendingConfirm, setPendingConfirm] = useState(null);
+  const [desktopFiles, setDesktopFiles] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [sysHistory, setSysHistory] = useState(Array(20).fill({ cpuLoad: 0, memUsed: 0 }));
 
@@ -74,6 +75,12 @@ export function useAura() {
     window.speechSynthesis.speak(utterance);
   };
 
+  const stopSpeech = useCallback(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
+
   
   useEffect(() => {
     const connectWebSocket = () => {
@@ -137,6 +144,7 @@ export function useAura() {
               speakText("I encountered an error processing your request.");
             } else if (data.type === 'sysinfo') {
               setSysHistory(prev => [...prev.slice(1), { memUsed: data.memUsed, cpuLoad: parseFloat(data.cpuLoad) * 20 }]); // Scale load avg
+              if (data.desktopFiles) setDesktopFiles(data.desktopFiles);
             }
           } catch (e) {
             console.error('Failed to parse message:', e);
@@ -252,6 +260,8 @@ export function useAura() {
     cancelPending,
     socketConnected,
     sysHistory,
+    desktopFiles,
+    stopSpeech,
   };
 }
 
