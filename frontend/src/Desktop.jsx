@@ -799,8 +799,9 @@ const Desktop = () => {
     isProcessing, submitPrompt, executeCommand,
     output, clearOutput,
     pendingConfirm, confirmPending, cancelPending,
-    socketConnected, sysHistory, desktopFiles, stopSpeech
-  } = useAura();
+    socketConnected, sysHistory, desktopFiles, stopSpeech,
+    wakeWordEvent
+  } = useAura(page === 'desktop');
 
 
 
@@ -862,13 +863,26 @@ const Desktop = () => {
     stopSpeech();
   }, [orbControls, stopListening, stopSpeech]);
 
+  const lastWakeWordRef = useRef(0);
+
+  useEffect(() => {
+    if (wakeWordEvent > lastWakeWordRef.current) {
+      lastWakeWordRef.current = wakeWordEvent;
+      if (!isPromptOpen) {
+        handleOrbClick();
+        openApp('aura');
+      }
+    }
+  }, [wakeWordEvent, handleOrbClick, openApp, isPromptOpen]);
+
   const handlePromptSubmit = useCallback((text) => {
     submitPrompt(text);
     setIsPromptOpen(false);
     setIsMicMode(false);
     orbControls.setMic(false);
+    stopListening();
     openApp('aura');
-  }, [orbControls, openApp, submitPrompt]);
+  }, [orbControls, openApp, submitPrompt, stopListening]);
 
   const prevListening = useRef(isListening);
 

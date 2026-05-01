@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
 
-export function useAura() {
+export function useAura(wakeWordEnabled = false) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -14,11 +14,36 @@ export function useAura() {
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const recognitionRef = useRef(null);
+  const wakeWordRecRef = useRef(null);
+  const [wakeWordEvent, setWakeWordEvent] = useState(0);
+  const isListeningRef = useRef(false);
+  const wakeWordEnabledRef = useRef(false);
+
+  useEffect(() => {
+    wakeWordEnabledRef.current = wakeWordEnabled;
+  }, [wakeWordEnabled]);
+
+  useEffect(() => {
+    isListeningRef.current = isListening;
+    if (isListening) {
+      if (wakeWordRecRef.current) {
+        try { wakeWordRecRef.current.abort(); } catch(e) {}
+      }
+    } else if (wakeWordEnabled) {
+      setTimeout(() => {
+        if (!isListeningRef.current && wakeWordRecRef.current) {
+          try { wakeWordRecRef.current.start(); } catch(e) {}
+        }
+      }, 500);
+    }
+  }, [isListening, wakeWordEnabled]);
 
   // Initialize Speech Recognition
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      
+      // Main Active Recognition
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = true;
@@ -52,6 +77,48 @@ export function useAura() {
       recognitionRef.current.onend = () => {
         setIsListening(false);
       };
+
+      // Wake Word Recognition
+      wakeWordRecRef.current = new SpeechRecognition();
+      wakeWordRecRef.current.continuous = true;
+      wakeWordRecRef.current.interimResults = true;
+      wakeWordRecRef.current.lang = 'en-US';
+
+      wakeWordRecRef.current.onresult = (event) => {
+        let text = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          text += event.results[i][0].transcript;
+        }
+        const lowerText = text.toLowerCase();
+        console.log("Background listening:", lowerText); // Help debug
+        
+        // Check if wake word is present
+        if (lowerText.match(/\b(hey aura|hello aura|aura|ara|ora|laura)\b/)) {
+           setWakeWordEvent(Date.now());
+           try { wakeWordRecRef.current.stop(); } catch(e) {}
+        }
+      };
+
+      wakeWordRecRef.current.onerror = (e) => {
+         console.warn("Wake word recognition error:", e.error);
+      };
+
+      wakeWordRecRef.current.onend = () => {
+         if (!isListeningRef.current && wakeWordRecRef.current && wakeWordEnabledRef.current) {
+            setTimeout(() => {
+               try {
+                  if (!isListeningRef.current && wakeWordEnabledRef.current) {
+                     wakeWordRecRef.current.start();
+                  }
+               } catch (e) {}
+            }, 300);
+         }
+      };
+
+      if (wakeWordEnabledRef.current) {
+         try { wakeWordRecRef.current.start(); } catch (e) {}
+      }
+
     } else {
       console.warn("Speech Recognition API not supported in this browser.");
     }
@@ -172,12 +239,21 @@ export function useAura() {
     if (recognitionRef.current) {
       setIsListening(true);
       setTranscript('');
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.error("Failed to start speech recognition:", e);
-        setIsListening(false);
+      
+      // Stop background listener explicitly before starting main listener
+      if (wakeWordRecRef.current) {
+        try { wakeWordRecRef.current.abort(); } catch(e) {}
       }
+
+      // Small delay to let browser release mic to the new instance
+      setTimeout(() => {
+        try {
+          if (recognitionRef.current) recognitionRef.current.start();
+        } catch (e) {
+          console.error("Failed to start active speech recognition:", e);
+          setIsListening(false);
+        }
+      }, 300);
     } else {
       console.warn("Speech Recognition not available.");
     }
@@ -274,6 +350,7 @@ export function useAura() {
     desktopFiles,
     stopSpeech,
     executeCommand,
+    wakeWordEvent,
   };
 }
 
