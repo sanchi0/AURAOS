@@ -796,7 +796,7 @@ const Desktop = () => {
   const {
     isListening, transcript,
     startListening, stopListening,
-    isProcessing, submitPrompt,
+    isProcessing, submitPrompt, executeCommand,
     output, clearOutput,
     pendingConfirm, confirmPending, cancelPending,
     socketConnected, sysHistory, desktopFiles, stopSpeech
@@ -1011,17 +1011,17 @@ const Desktop = () => {
                 if (file.isDir) {
                   openApp('files');
                 } else if (file.isExec) {
-                  openApp('terminal');
-                  setTimeout(() => submitPrompt('~/Desktop/' + file.name), 500);
+                  openApp('aura');
+                  setTimeout(() => executeCommand('~/Desktop/' + file.name), 500);
                 } else {
-                  openApp('terminal');
-                  setTimeout(() => submitPrompt('cat ~/Desktop/' + file.name), 500);
+                  openApp('aura');
+                  setTimeout(() => executeCommand(`[ -s ~/Desktop/${file.name} ] && cat ~/Desktop/${file.name} || echo "(File is empty)"`), 500);
                 }
               }}
               onContextMenu={(e) => { 
                 e.preventDefault(); 
                 if (file.isDir) openApp('files');
-                else openApp('terminal');
+                else openApp('aura');
               }}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 100,

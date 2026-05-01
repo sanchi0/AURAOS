@@ -228,6 +228,17 @@ export function useAura() {
     }
   }, []);
 
+  const executeCommand = useCallback((cmd) => {
+    if (!cmd || !cmd.trim()) return;
+    setIsProcessing(true);
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'execute',
+        content: cmd.trim()
+      }));
+    }
+  }, []);
+
   const clearOutput = useCallback(() => {
     setOutput([]);
   }, []);
@@ -262,6 +273,7 @@ export function useAura() {
     sysHistory,
     desktopFiles,
     stopSpeech,
+    executeCommand,
   };
 }
 
