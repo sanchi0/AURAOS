@@ -10,11 +10,13 @@ export function useAura(wakeWordEnabled = false) {
   const [desktopFiles, setDesktopFiles] = useState([]);
   const [socketConnected, setSocketConnected] = useState(false);
   const [sysHistory, setSysHistory] = useState(Array(20).fill({ cpuLoad: 0, memUsed: 0 }));
+  const [isMuted, setIsMuted] = useState(false);
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
   const recognitionRef = useRef(null);
   const wakeWordRecRef = useRef(null);
+  const speechTimeoutRef = useRef(null);
   const [wakeWordEvent, setWakeWordEvent] = useState(0);
   const [openAppRequest, setOpenAppRequest] = useState(null);
   const isListeningRef = useRef(false);
@@ -46,7 +48,7 @@ export function useAura(wakeWordEnabled = false) {
       
       // Main Active Recognition
       recognitionRef.current = new SpeechRecognition();
-      recognitionRef.current.continuous = false;
+      recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = 'en-US';
 
@@ -65,6 +67,14 @@ export function useAura(wakeWordEnabled = false) {
         // Use previous transcript state to append new final results if continuous is true,
         // but since a new session starts each time, we just set the combination.
         setTranscript(finalTranscript + interimTranscript);
+
+        // Reset the 3-second silence timeout
+        if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+        speechTimeoutRef.current = setTimeout(() => {
+          if (recognitionRef.current) {
+            try { recognitionRef.current.stop(); } catch(e) {}
+          }
+        }, 3000);
       };
 
       recognitionRef.current.onerror = (event) => {
@@ -127,6 +137,7 @@ export function useAura(wakeWordEnabled = false) {
 
   const speakText = (text) => {
     if (!('speechSynthesis' in window)) return;
+    if (isMuted) return;
 
     
     const cleanText = text.replace(/> Executing: .*\n\n/g, '').replace(/[#*`]/g, '').trim();
@@ -147,6 +158,22 @@ export function useAura(wakeWordEnabled = false) {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
     }
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    setIsMuted(prev => {
+      const newMuted = !prev;
+      if (!newMuted && 'speechSynthesis' in window) {
+        // Unlock API
+        const u = new SpeechSynthesisUtterance('');
+        u.volume = 0;
+        window.speechSynthesis.speak(u);
+      }
+      if (newMuted && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+      return newMuted;
+    });
   }, []);
 
   
@@ -258,6 +285,13 @@ export function useAura(wakeWordEnabled = false) {
       setTimeout(() => {
         try {
           if (recognitionRef.current) recognitionRef.current.start();
+          
+          if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
+          speechTimeoutRef.current = setTimeout(() => {
+            if (recognitionRef.current) {
+              try { recognitionRef.current.stop(); } catch(e) {}
+            }
+          }, 5000);
         } catch (e) {
           console.error("Failed to start active speech recognition:", e);
           setIsListening(false);
@@ -272,6 +306,7 @@ export function useAura(wakeWordEnabled = false) {
     if (recognitionRef.current) {
       recognitionRef.current.stop();
     }
+    if (speechTimeoutRef.current) clearTimeout(speechTimeoutRef.current);
     setIsListening(false);
   }, []);
 
@@ -367,7 +402,9 @@ export function useAura(wakeWordEnabled = false) {
     stopSpeech,
     executeCommand,
     wakeWordEvent,
-    openAppRequest
+    openAppRequest,
+    isMuted,
+    toggleMute
   };
 }
 

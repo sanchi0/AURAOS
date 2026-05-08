@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Settings, Image as ImageIcon, Calculator, Mail, Terminal, Calendar, Hash, MessageCircle, Globe, Search, Download, FileText, Music, Play, Pause, SkipForward, SkipBack, Power, RefreshCw, Lock, ChevronUp, Volume2, Battery, Folder, Wifi, Monitor } from 'lucide-react';
+import { Settings, Image as ImageIcon, Calculator, Mail, Terminal, Calendar, Hash, MessageCircle, Globe, Search, Download, FileText, Music, Play, Pause, SkipForward, SkipBack, Power, RefreshCw, Lock, ChevronUp, Volume2, VolumeX, Battery, Folder, Wifi, Monitor } from 'lucide-react';
 
 import useAura from './hooks/useAura';
 import AuraTerminal from './hooks/AuraTerminal';
@@ -644,7 +644,7 @@ const PromptPanel = ({ isOpen, isMicMode, isListening, transcript, startListenin
 
 
 
-const Taskbar = ({ openWindows, onWindowFocus, onMenuToggle, isMenuOpen, searchText }) => {
+const Taskbar = ({ openWindows, onWindowFocus, onMenuToggle, isMenuOpen, searchText, isMuted, toggleMute }) => {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -704,6 +704,7 @@ const Taskbar = ({ openWindows, onWindowFocus, onMenuToggle, isMenuOpen, searchT
         <div style={{ display: 'flex', gap: 12, opacity: 0.8, color: '#a1a1aa' }}>
           <Wifi size={16} />
           <Battery size={16} />
+          {isMuted ? <VolumeX size={16} onClick={toggleMute} style={{cursor: 'pointer'}} /> : <Volume2 size={16} onClick={toggleMute} style={{cursor: 'pointer'}} />}
         </div>
         <span style={{ letterSpacing: 1, borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: 16 }}>
           {time.toLocaleDateString()} {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -801,7 +802,8 @@ const Desktop = () => {
     output, clearOutput,
     pendingConfirm, confirmPending, cancelPending,
     socketConnected, sysHistory, desktopFiles, stopSpeech,
-    wakeWordEvent, openAppRequest
+    wakeWordEvent, openAppRequest,
+    isMuted, toggleMute
   } = useAura(page === 'desktop');
 
   const desktopOrbRef = useRef(null);
@@ -811,6 +813,12 @@ const Desktop = () => {
   const goToDesktop = useCallback(() => {
     setPage('desktop');
     setTimeout(() => setIconsVisible(true), 500);
+    // Unlock Speech Synthesis API on first interaction
+    if ('speechSynthesis' in window) {
+      const u = new SpeechSynthesisUtterance('');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+    }
   }, []);
 
   const APP_DEFS = {
@@ -1205,8 +1213,8 @@ const Desktop = () => {
             <div style={{ display: 'flex', gap: 12, height: 100 }}>
               {/* Date Block */}
               <div style={{ flex: 1, background: '#563eb6ff', borderRadius: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 20px rgba(255,255,255,0.2)' }}>
-                <span style={{ fontSize: 36, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{new Date().getDate()}</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long' })}</span>
+                <span style={{ fontSize: 36, fontWeight: 700, color: '#fff', lineHeight: 1 }}>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', letterSpacing: 1, textTransform: 'uppercase', marginTop: 4 }}>{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</span>
               </div>
             </div>
 
@@ -1250,7 +1258,7 @@ const Desktop = () => {
 
         <SidePanel isOpen={isSidePanelOpen} onClose={() => setIsSidePanelOpen(false)} sysHistory={sysHistory} />
         <PromptPanel isOpen={isPromptOpen} isMicMode={isMicMode} isListening={isListening} transcript={transcript} startListening={startListening} stopListening={stopListening} onClose={handlePromptClose} onSubmit={handlePromptSubmit} />
-        <Taskbar openWindows={openWindows} onWindowFocus={focusWindow} onMenuToggle={() => setIsMenuOpen(!isMenuOpen)} isMenuOpen={isMenuOpen} searchText={t('search')} />
+        <Taskbar openWindows={openWindows} onWindowFocus={focusWindow} onMenuToggle={() => setIsMenuOpen(!isMenuOpen)} isMenuOpen={isMenuOpen} searchText={t('search')} isMuted={isMuted} toggleMute={toggleMute} />
       </div>
     </div>
   );
