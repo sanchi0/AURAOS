@@ -834,6 +834,22 @@ const Desktop = () => {
   };
 
   const openApp = useCallback((id) => {
+    const ubuntuApps = {
+      chrome: 'google-chrome || chromium-browser',
+      settings: 'gnome-control-center',
+      photos: 'eog',
+      calculator: 'gnome-calculator',
+      terminal: 'gnome-terminal',
+      calendar: 'gnome-calendar',
+      files: 'xdg-open ~/',
+      tasks: 'gnome-system-monitor'
+    };
+
+    if (ubuntuApps[id]) {
+      executeCommand(ubuntuApps[id]);
+      return;
+    }
+
     setOpenWindows(prev => {
       const exists = prev.find(w => w.id === id);
       if (exists) return prev.map(w => ({ ...w, isFocused: w.id === id }));
@@ -843,7 +859,7 @@ const Desktop = () => {
       }];
     });
     setFocusedWindow(id);
-  }, []);
+  }, [executeCommand]);
 
   useEffect(() => {
     if (openAppRequest) {
@@ -933,6 +949,8 @@ const Desktop = () => {
         stopListening={stopListening}
         transcript={transcript}
         isProcessing={isProcessing}
+        isMuted={isMuted}
+        toggleMute={toggleMute}
       />
     );
     if (id === 'terminal') return <TerminalContent />;
@@ -1039,19 +1057,17 @@ const Desktop = () => {
               key={i}
               onDoubleClick={() => {
                 if (file.isDir) {
-                  openApp('files');
+                  executeCommand(`xdg-open "~/Desktop/${file.name}"`);
                 } else if (file.isExec) {
                   openApp('aura');
                   setTimeout(() => executeCommand('~/Desktop/' + file.name), 500);
                 } else {
-                  openApp('aura');
-                  setTimeout(() => executeCommand(`[ -s ~/Desktop/${file.name} ] && cat ~/Desktop/${file.name} || echo "(File is empty)"`), 500);
+                  executeCommand(`xdg-open "~/Desktop/${file.name}"`);
                 }
               }}
               onContextMenu={(e) => { 
                 e.preventDefault(); 
-                if (file.isDir) openApp('files');
-                else openApp('aura');
+                executeCommand(`xdg-open "~/Desktop/${file.name}"`);
               }}
               style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, width: 100,
@@ -1136,11 +1152,10 @@ const Desktop = () => {
                     onMouseLeave={e => { setActiveMenuApp(null); e.currentTarget.style.background = 'transparent'; }}
                     onClick={() => {
                       if (app.isFile) {
-                        if (app.original.isDir) openApp('files');
+                        if (app.original.isDir) executeCommand(`xdg-open "~/Desktop/${app.original.name}"`);
                         else {
-                          openApp('aura');
-                          if (app.original.isExec) setTimeout(() => executeCommand('~/Desktop/' + app.original.name), 500);
-                          else setTimeout(() => executeCommand(`[ -s ~/Desktop/${app.original.name} ] && cat ~/Desktop/${app.original.name} || echo "(File is empty)"`), 500);
+                          if (app.original.isExec) executeCommand('~/Desktop/' + app.original.name);
+                          else executeCommand(`xdg-open "~/Desktop/${app.original.name}"`);
                         }
                       } else {
                         if (app.link) window.open(app.link, '_blank');

@@ -116,14 +116,6 @@ wss.on('connection', (ws) => {
                 const parsed = JSON.parse(cleanedStr);
 
                 if (parsed.command) {
-                  let cmdStr = parsed.command.trim().toLowerCase();
-                  if (cmdStr.includes('google-chrome') || cmdStr === 'chrome' || cmdStr.includes('chromium')) {
-                    ws.send(JSON.stringify({ type: 'open_app', app: 'chrome' }));
-                    ws.send(JSON.stringify({ type: 'response', content: 'Opening Chrome within AURA...' }));
-                    ws.send(JSON.stringify({ type: 'stream_end' }));
-                    return;
-                  }
-
                   if (parsed.command.includes('sudo ') || parsed.command.startsWith('sudo')) {
                     ws.send(JSON.stringify({ type: 'require_password', command: parsed.command }));
                     return;

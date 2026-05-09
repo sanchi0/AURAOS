@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Volume2, VolumeX } from 'lucide-react';
 
-const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, clearOutput, socketConnected, sysInfo, submitPrompt, isListening, startListening, stopListening, transcript, isProcessing }) => {
+const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, clearOutput, socketConnected, sysInfo, submitPrompt, isListening, startListening, stopListening, transcript, isProcessing, isMuted, toggleMute }) => {
   const terminalRef = useRef(null);
   const [text, setText] = useState('');
 
@@ -21,13 +22,15 @@ const AuraTerminal = ({ output, pendingConfirm, confirmPending, cancelPending, c
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: socketConnected ? '#4cff9e' : '#ff6b6b', boxShadow: `0 0 6px ${socketConnected ? '#4cff9e' : '#ff6b6b'}` }} />
           <span style={{ color: '#8aaec8', fontSize: 11, letterSpacing: 1 }}>{socketConnected ? 'CONNECTED' : 'DISCONNECTED'}</span>
         </div>
-        
-        <button
-          onClick={clearOutput}
-          style={{ background: 'none', border: 'none', color: '#8aaec8', fontSize: 11, cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}
-        >
-          Clear
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {isMuted ? <VolumeX size={16} onClick={toggleMute} style={{cursor: 'pointer', color: '#8aaec8'}} /> : <Volume2 size={16} onClick={toggleMute} style={{cursor: 'pointer', color: '#8aaec8'}} />}
+          <button
+            onClick={clearOutput}
+            style={{ background: 'none', border: 'none', color: '#8aaec8', fontSize: 11, cursor: 'pointer', padding: '4px 8px', borderRadius: 4 }}
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       <div
