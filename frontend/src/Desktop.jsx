@@ -233,13 +233,48 @@ const AppWindow = ({ win, onClose, onFocus, isFocused, children }) => {
 
 
 
-const FilesContent = () => (
-  <div>
-    {['Documents/', 'Downloads/', 'Desktop/', 'Pictures/'].map(f => (
-      <div key={f} style={{ padding: '8px 12px', margin: '4px 0', background: 'rgba(255,255,255,0.05)', borderRadius: 6, cursor: 'pointer' }}>{f}</div>
-    ))}
-  </div>
-);
+const FilesContent = ({ currentPath, fileExplorerItems, requestFileExplore, performFileOp }) => {
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    requestFileExplore(currentPath);
+  }, [currentPath, requestFileExplore]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', fontFamily: "'Exo 2', sans-serif" }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12, alignItems: 'center' }}>
+        <button onClick={() => {
+          const parts = currentPath.split('/').filter(Boolean);
+          if (parts.length > 1) {
+            requestFileExplore('/' + parts.slice(0, -1).join('/'));
+          }
+        }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, cursor: 'pointer' }}>Up</button>
+        <div style={{ flex: 1, background: 'rgba(0,0,0,0.3)', padding: '6px 12px', borderRadius: 6, fontSize: 13, color: '#e4e4e7', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>{currentPath}</div>
+        <button onClick={() => requestFileExplore(currentPath)} style={{ background: 'none', border: 'none', color: '#64c8ff', cursor: 'pointer' }}><RefreshCw size={16} /></button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 8 }}>
+        {fileExplorerItems.length === 0 ? <div style={{ color: '#a1a1aa', padding: 12, textAlign: 'center' }}>Empty Directory</div> :
+          fileExplorerItems.map((item, i) => (
+            <div key={i}
+                 onClick={() => setSelected(item.path)}
+                 onDoubleClick={() => item.isDir && requestFileExplore(item.path)}
+                 style={{
+                   display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', cursor: 'pointer',
+                   background: selected === item.path ? 'rgba(167, 139, 250, 0.2)' : 'transparent',
+                   borderRadius: 6, transition: 'background 0.2s', borderBottom: '1px solid rgba(255,255,255,0.05)'
+                 }}>
+              {item.isDir ? <Folder size={18} color="#64c8ff" /> : <FileText size={18} color="#e4e4e7" />}
+              <span style={{ flex: 1, color: '#e4e4e7', fontSize: 13 }}>{item.name}</span>
+              <span style={{ color: '#a1a1aa', fontSize: 11 }}>{item.isDir ? '--' : (item.size/1024).toFixed(1) + ' KB'}</span>
+            </div>
+          ))}
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+         <button onClick={() => selected && performFileOp('delete', { target: selected })} disabled={!selected} style={{ flex: 1, background: 'rgba(255,80,100,0.2)', border: '1px solid rgba(255,80,100,0.4)', color: '#ff6b6b', padding: '6px', borderRadius: 6, cursor: selected ? 'pointer' : 'not-allowed' }}>Delete</button>
+      </div>
+    </div>
+  );
+};
 
 const TasksContent = () => (
   <div>
@@ -251,14 +286,20 @@ const TasksContent = () => (
   </div>
 );
 
-const SettingsContent = ({ bgImage, setBgImage, language, setLanguage, theme, setTheme }) => {
+const SettingsContent = ({ bgImage, setBgImage, language, setLanguage, theme, setTheme, networks, bluetoothDevices, displayInfo, requestSystemData }) => {
   const [tab, setTab] = useState('Personalize');
   
+  useEffect(() => {
+    if (tab === 'Network') requestSystemData('get_networks');
+    if (tab === 'Bluetooth') requestSystemData('get_bluetooth');
+    if (tab === 'Personalize') requestSystemData('get_displays');
+  }, [tab, requestSystemData]);
+
   return (
     <div style={{ display: 'flex', height: '100%', fontFamily: "'Exo 2', sans-serif" }}>
       {/* Sidebar */}
       <div style={{ width: 120, borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {['Personalize', 'Sound', 'Network', 'Language'].map(t => (
+        {['Personalize', 'Sound', 'Network', 'Bluetooth', 'Language'].map(t => (
           <div key={t} onClick={() => setTab(t)} style={{ padding: '8px 12px', borderRadius: 8, background: tab === t ? 'rgba(167, 139, 250, 0.2)' : 'transparent', color: tab === t ? '#c4b5fd' : '#8aaec8', cursor: 'pointer', transition: 'all 0.2s', fontSize: 13, fontWeight: 500 }}>
             {t}
           </div>
@@ -280,8 +321,14 @@ const SettingsContent = ({ bgImage, setBgImage, language, setLanguage, theme, se
               </select>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ color: '#e4e4e7', fontSize: 13 }}>Animations</label>
-              <input type="checkbox" defaultChecked />
+              <label style={{ color: '#e4e4e7', fontSize: 13 }}>Display Info</label>
+              <div style={{ background: 'rgba(0,0,0,0.3)', padding: 8, borderRadius: 6, fontSize: 11, color: '#a1a1aa', maxHeight: 80, overflowY: 'auto', flex: 1, marginLeft: 16 }}>
+                 {displayInfo || 'Loading...'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <label style={{ color: '#e4e4e7', fontSize: 13 }}>Brightness</label>
+              <input type="range" min="0.1" max="1.0" step="0.1" defaultValue="1.0" onChange={e => requestSystemData('set_brightness', { display: 'Virtual-1', value: e.target.value })} style={{ accentColor: '#a78bfa', width: 120 }} />
             </div>
           </div>
         )}
@@ -289,11 +336,7 @@ const SettingsContent = ({ bgImage, setBgImage, language, setLanguage, theme, se
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ color: '#e4e4e7', fontSize: 13 }}>Master Volume</label>
-              <input type="range" min="0" max="100" defaultValue="80" style={{ accentColor: '#a78bfa', width: 120 }} />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ color: '#e4e4e7', fontSize: 13 }}>System Alerts</label>
-              <input type="range" min="0" max="100" defaultValue="50" style={{ accentColor: '#a78bfa', width: 120 }} />
+              <input type="range" min="0" max="100" defaultValue="80" onChange={e => requestSystemData('set_volume', { value: e.target.value })} style={{ accentColor: '#a78bfa', width: 120 }} />
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ color: '#e4e4e7', fontSize: 13 }}>Output Device</label>
@@ -301,26 +344,42 @@ const SettingsContent = ({ bgImage, setBgImage, language, setLanguage, theme, se
                 <option>Built-in Speakers</option><option>Bluetooth Headphones</option>
               </select>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ color: '#e4e4e7', fontSize: 13 }}>Spatial Audio</label>
-              <input type="checkbox" />
-            </div>
           </div>
         )}
         {tab === 'Network' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#e4e4e7', fontWeight: 600, fontSize: 13 }}>Wi-Fi</span><span style={{ color: '#4cff9e', fontSize: 12 }}>Connected</span></div>
-              <span style={{ color: '#a1a1aa', fontSize: 12 }}>AURA_Network_5G (Signal: Strong)</span>
-            </div>
-            <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: '#e4e4e7', fontWeight: 600, fontSize: 13 }}>Ethernet</span><span style={{ color: '#ffaa44', fontSize: 12 }}>Not Connected</span></div>
-              <span style={{ color: '#a1a1aa', fontSize: 12 }}>Check cable</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
-              <label style={{ color: '#e4e4e7', fontSize: 13 }}>Airplane Mode</label>
-              <input type="checkbox" />
-            </div>
+             <button onClick={() => requestSystemData('get_networks')} style={{ background: 'rgba(100,200,255,0.1)', color: '#64c8ff', border: '1px solid rgba(100,200,255,0.3)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>Refresh Networks</button>
+             {networks.length === 0 ? <span style={{ color: '#a1a1aa', fontSize: 12 }}>Scanning for networks...</span> : 
+               networks.map((n, i) => (
+                 <div key={i} style={{ padding: 12, borderRadius: 8, background: n.active ? 'rgba(76,255,158,0.1)' : 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: n.active ? '1px solid rgba(76,255,158,0.3)' : '1px solid transparent' }}>
+                   <div>
+                     <div style={{ color: '#e4e4e7', fontWeight: 600, fontSize: 13 }}>{n.ssid}</div>
+                     <span style={{ color: '#a1a1aa', fontSize: 11 }}>Signal: {n.signal}% | Sec: {n.sec}</span>
+                   </div>
+                   {!n.active && <button onClick={() => {
+                      const pwd = prompt(`Password for ${n.ssid} (leave empty if none):`);
+                      if (pwd !== null) requestSystemData('connect_network', { ssid: n.ssid, password: pwd });
+                   }} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Connect</button>}
+                   {n.active && <span style={{ color: '#4cff9e', fontSize: 11, fontWeight: 600 }}>Connected</span>}
+                 </div>
+               ))
+             }
+          </div>
+        )}
+        {tab === 'Bluetooth' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+             <button onClick={() => requestSystemData('get_bluetooth')} style={{ background: 'rgba(167, 139, 250, 0.1)', color: '#c4b5fd', border: '1px solid rgba(167, 139, 250, 0.3)', padding: '6px 12px', borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>Refresh Devices</button>
+             {bluetoothDevices.length === 0 ? <span style={{ color: '#a1a1aa', fontSize: 12 }}>Scanning for paired devices...</span> : 
+               bluetoothDevices.map((d, i) => (
+                 <div key={i} style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                   <div>
+                     <div style={{ color: '#e4e4e7', fontWeight: 600, fontSize: 13 }}>{d.name}</div>
+                     <span style={{ color: '#a1a1aa', fontSize: 11 }}>{d.mac}</span>
+                   </div>
+                   <button onClick={() => requestSystemData('connect_bluetooth', { mac: d.mac })} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', padding: '4px 10px', borderRadius: 4, cursor: 'pointer', fontSize: 11 }}>Connect</button>
+                 </div>
+               ))
+             }
           </div>
         )}
         {tab === 'Language' && (
@@ -803,7 +862,9 @@ const Desktop = () => {
     pendingConfirm, confirmPending, cancelPending,
     socketConnected, sysHistory, desktopFiles, stopSpeech,
     wakeWordEvent, openAppRequest,
-    isMuted, toggleMute
+    isMuted, toggleMute,
+    networks, bluetoothDevices, displayInfo, fileExplorerItems,
+    currentPath, requestSystemData, requestFileExplore, performFileOp
   } = useAura(page === 'desktop');
 
   const desktopOrbRef = useRef(null);
@@ -957,10 +1018,10 @@ const Desktop = () => {
     if (id === 'calculator') return <CalculatorContent />;
     if (id === 'photos') return <PhotosContent />;
     if (id === 'calendar') return <CalendarContent />;
-    if (id === 'files') return <FilesContent />;
+    if (id === 'files') return <FilesContent currentPath={currentPath} fileExplorerItems={fileExplorerItems} requestFileExplore={requestFileExplore} performFileOp={performFileOp} />;
     if (id === 'tasks') return <TasksContent />;
     if (id === 'chrome') return <ChromeContent />;
-    if (id === 'settings') return <SettingsContent bgImage={bgImage} setBgImage={setBgImage} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} />;
+    if (id === 'settings') return <SettingsContent bgImage={bgImage} setBgImage={setBgImage} language={language} setLanguage={setLanguage} theme={theme} setTheme={setTheme} networks={networks} bluetoothDevices={bluetoothDevices} displayInfo={displayInfo} requestSystemData={requestSystemData} />;
     return null;
   };
 

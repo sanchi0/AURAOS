@@ -11,6 +11,11 @@ export function useAura(wakeWordEnabled = false) {
   const [socketConnected, setSocketConnected] = useState(false);
   const [sysHistory, setSysHistory] = useState(Array(20).fill({ cpuLoad: 0, memUsed: 0 }));
   const [isMuted, setIsMuted] = useState(false);
+  const [networks, setNetworks] = useState([]);
+  const [bluetoothDevices, setBluetoothDevices] = useState([]);
+  const [displayInfo, setDisplayInfo] = useState('');
+  const [fileExplorerItems, setFileExplorerItems] = useState([]);
+  const [currentPath, setCurrentPath] = useState('/home/vboxuser/Desktop');
 
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
@@ -248,6 +253,19 @@ export function useAura(wakeWordEnabled = false) {
             } else if (data.type === 'sysinfo') {
               setSysHistory(prev => [...prev.slice(1), { memUsed: data.memUsed, cpuLoad: parseFloat(data.cpuLoad) * 20 }]); // Scale load avg
               if (data.desktopFiles) setDesktopFiles(data.desktopFiles);
+            } else if (data.type === 'network_list') {
+              setNetworks(data.networks);
+            } else if (data.type === 'bluetooth_list') {
+              setBluetoothDevices(data.devices);
+            } else if (data.type === 'display_info') {
+              setDisplayInfo(data.raw);
+            } else if (data.type === 'explore_results') {
+              setFileExplorerItems(data.items);
+              setCurrentPath(data.path);
+            } else if (data.type === 'file_op_success') {
+               if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                 wsRef.current.send(JSON.stringify({ type: 'file_explore', path: currentPath }));
+               }
             }
           } catch (e) {
             console.error('Failed to parse message:', e);
@@ -384,6 +402,24 @@ export function useAura(wakeWordEnabled = false) {
     setPendingConfirm(null);
   }, []);
 
+  const requestSystemData = useCallback((action, payload = {}) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'system_control', action, ...payload }));
+    }
+  }, []);
+
+  const requestFileExplore = useCallback((path) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'file_explore', path }));
+    }
+  }, []);
+
+  const performFileOp = useCallback((action, payload) => {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'file_op', action, ...payload }));
+    }
+  }, []);
+
   return {
     isListening,
     transcript,
@@ -404,7 +440,15 @@ export function useAura(wakeWordEnabled = false) {
     wakeWordEvent,
     openAppRequest,
     isMuted,
-    toggleMute
+    toggleMute,
+    networks,
+    bluetoothDevices,
+    displayInfo,
+    fileExplorerItems,
+    currentPath,
+    requestSystemData,
+    requestFileExplore,
+    performFileOp
   };
 }
 

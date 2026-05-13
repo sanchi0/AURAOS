@@ -18,7 +18,7 @@ if (apiKeys.length > 0) {
   console.log('⚠️ No Gemini API key found. Using fallback responses.');
 }
 
-async function generateContentWithRetry(userPrompt) {
+async function generateContentWithRetry(promptData) {
   let attempts = 0;
   while (attempts < apiKeys.length) {
     const key = apiKeys[currentKeyIndex];
@@ -31,7 +31,7 @@ If the request is conversational and does NOT require executing a command, respo
     });
 
     try {
-      return await model.generateContentStream(userPrompt);
+      return await model.generateContentStream(promptData);
     } catch (error) {
       console.warn(`⚠️ API Key ${currentKeyIndex + 1} failed (${error.message}). Switching to next key...`);
       currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
@@ -90,7 +90,25 @@ wss.on('connection', (ws) => {
         if (apiKeys.length > 0) {
           
           try {
-            const result = await generateContentWithRetry(userPrompt);
+            let promptData = userPrompt;
+            const lowerPrompt = userPrompt.toLowerCase();
+            if (lowerPrompt.includes('see') || lowerPrompt.includes('screen') || lowerPrompt.includes('document') || lowerPrompt.includes('look') || lowerPrompt.includes('read')) {
+               ws.send(JSON.stringify({ type: 'stream', content: `> Capturing screen...\n\n` }));
+               const execPromise = require('util').promisify(exec);
+               try {
+                 await execPromise('gnome-screenshot -f /tmp/aura_screen.png');
+                 const imgData = require('fs').readFileSync('/tmp/aura_screen.png');
+                 const base64Img = imgData.toString('base64');
+                 promptData = [
+                   { inlineData: { data: base64Img, mimeType: 'image/png' } },
+                   userPrompt
+                 ];
+               } catch (e) {
+                 console.error('Screenshot failed:', e);
+                 ws.send(JSON.stringify({ type: 'stream', content: `> Screenshot failed: ${e.message}\n\n` }));
+               }
+            }
+            const result = await generateContentWithRetry(promptData);
             let fullResponse = '';
             let isJSONCommand = false;
 
@@ -171,6 +189,86 @@ wss.on('connection', (ws) => {
 
           ws.send(JSON.stringify({ type: 'response', content: response }));
         }
+      } else if (message.type === 'system_control') {
+        const action = message.action;
+        try {
+          const execPromise = require('util').promisify(exec);
+          if (action === 'get_networks') {
+            const { stdout } = await execPromise('nmcli -t -f SSID,SIGNAL,ACTIVE,SECURITY dev wifi');
+            const networks = stdout.split('\n').filter(Boolean).map(line => {
+              const [ssid, signal, active, sec] = line.split(':');
+              return { ssid, signal: parseInt(signal), active: active === 'yes', sec };
+            }).filter(n => n.ssid);
+            ws.send(JSON.stringify({ type: 'network_list', networks }));
+          } else if (action === 'connect_network') {
+            const cmd = message.password ? `nmcli dev wifi connect "${message.ssid}" password "${message.password}"` : `nmcli dev wifi connect "${message.ssid}"`;
+            await execPromise(cmd);
+            ws.send(JSON.stringify({ type: 'response', content: `Connected to ${message.ssid}` }));
+          } else if (action === 'get_bluetooth') {
+             const { stdout } = await execPromise('bluetoothctl devices');
+             const devices = stdout.split('\n').filter(Boolean).map(l => {
+                const parts = l.split(' ');
+                return { mac: parts[1], name: parts.slice(2).join(' ') };
+             });
+             ws.send(JSON.stringify({ type: 'bluetooth_list', devices }));
+          } else if (action === 'connect_bluetooth') {
+             await execPromise(`bluetoothctl connect ${message.mac}`);
+             ws.send(JSON.stringify({ type: 'response', content: `Connected to Bluetooth device` }));
+          } else if (action === 'get_displays') {
+             const { stdout } = await execPromise('xrandr --query');
+             ws.send(JSON.stringify({ type: 'display_info', raw: stdout }));
+          } else if (action === 'set_brightness') {
+             await execPromise(`xrandr --output ${message.display} --brightness ${message.value}`);
+             ws.send(JSON.stringify({ type: 'response', content: `Brightness set to ${message.value}` }));
+          } else if (action === 'set_volume') {
+             await execPromise(`amixer -D pulse sset Master ${message.value}%`);
+             ws.send(JSON.stringify({ type: 'response', content: `Volume set to ${message.value}%` }));
+          }
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'error', content: e.message }));
+        }
+      } else if (message.type === 'file_explore') {
+        const targetPath = message.path || '/home/vboxuser/Desktop';
+        try {
+          const fs = require('fs');
+          const p = require('path');
+          const items = await fs.promises.readdir(targetPath);
+          const detailedItems = [];
+          for (const item of items) {
+             const fullPath = p.join(targetPath, item);
+             const stat = await fs.promises.stat(fullPath).catch(()=>null);
+             if (stat) {
+                detailedItems.push({
+                   name: item,
+                   path: fullPath,
+                   isDir: stat.isDirectory(),
+                   size: stat.size,
+                   mtime: stat.mtime
+                });
+             }
+          }
+          ws.send(JSON.stringify({ type: 'explore_results', path: targetPath, items: detailedItems }));
+        } catch (e) {
+          ws.send(JSON.stringify({ type: 'error', content: e.message }));
+        }
+      } else if (message.type === 'file_op') {
+         const action = message.action;
+         const fs = require('fs');
+         try {
+            if (action === 'delete') {
+               await fs.promises.rm(message.target, { recursive: true, force: true });
+               ws.send(JSON.stringify({ type: 'response', content: `Deleted ${message.target}` }));
+            } else if (action === 'copy') {
+               await fs.promises.cp(message.src, message.dest, { recursive: true });
+               ws.send(JSON.stringify({ type: 'response', content: `Copied to ${message.dest}` }));
+            } else if (action === 'move') {
+               await fs.promises.rename(message.src, message.dest);
+               ws.send(JSON.stringify({ type: 'response', content: `Moved to ${message.dest}` }));
+            }
+            ws.send(JSON.stringify({ type: 'file_op_success', action, target: message.target || message.dest }));
+         } catch(e) {
+            ws.send(JSON.stringify({ type: 'error', content: e.message }));
+         }
       }
 
     } catch (error) {
