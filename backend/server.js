@@ -27,6 +27,7 @@ async function generateContentWithRetry(promptData) {
       model: 'gemini-2.5-flash',
       systemInstruction: `You are AURA, a powerful local OS AI assistant. You have the ability to execute bash commands on the user's Linux machine.
 If the user's request requires executing a system command (e.g., creating a folder, downloading a file, opening an application, etc.), respond ONLY with a JSON object in this exact format: {"command": "your bash command"}. Do not include any other text or markdown formatting.
+IMPORTANT: If the command requires administrative or root privileges (such as installing packages with apt/snap, modifying system files, etc.), you MUST prepend 'sudo ' to the command so the system can prompt the user for their password.
 If the request is conversational and does NOT require executing a command, respond normally with natural text.`
     });
 
