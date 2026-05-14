@@ -96,8 +96,25 @@ wss.on('connection', (ws) => {
                ws.send(JSON.stringify({ type: 'stream', content: `> Capturing screen...\n\n` }));
                const execPromise = require('util').promisify(exec);
                try {
-                 await execPromise('gnome-screenshot -f /tmp/aura_screen.png');
-                 const imgData = require('fs').readFileSync('/tmp/aura_screen.png');
+                 const fs = require('fs');
+                 if (fs.existsSync('/tmp/aura_screen.png')) {
+                   fs.unlinkSync('/tmp/aura_screen.png');
+                 }
+                 
+                 // Execute screenshot. On Wayland, this may return immediately and open a prompt.
+                 execPromise('gnome-screenshot -f /tmp/aura_screen.png').catch(err => console.warn("Screenshot exec issue:", err));
+                 
+                 let retries = 30; // Wait up to 15 seconds
+                 while (!fs.existsSync('/tmp/aura_screen.png') && retries > 0) {
+                   await new Promise(resolve => setTimeout(resolve, 500));
+                   retries--;
+                 }
+
+                 if (!fs.existsSync('/tmp/aura_screen.png')) {
+                   throw new Error("Screenshot capture timed out. Please ensure you accept the prompt if it appears.");
+                 }
+
+                 const imgData = fs.readFileSync('/tmp/aura_screen.png');
                  const base64Img = imgData.toString('base64');
                  promptData = [
                    { inlineData: { data: base64Img, mimeType: 'image/png' } },
